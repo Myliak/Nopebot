@@ -15,6 +15,7 @@ for (const file of commandFiles) {
 const cooldowns = new Discord.Collection();
 
 client.on('ready', () => {
+    client.user.setActivity("niggers", {type: "WATCHING"});
     console.log('Up and running!');
 });
 

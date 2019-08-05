@@ -12,7 +12,7 @@ module.exports = {
         const { commands } = message.client;
 
         if (!args.length) {
-            data.push("Seznam všech příkazů na serveru.");
+            data.push("**Seznam všech příkazů na serveru:**");
             data.push(commands.map(command => command.name).join(', '));
             data.push(`\nNapiš \`${prefix}help [název příkazu]\` abys dostal informace o určitém příkazu.`);
             return message.channel.send(data, { split: true })

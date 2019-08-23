@@ -21,7 +21,7 @@ module.exports = {
                     try {
                         member.removeRole(permitRole).catch(console.error);
                     }
-                    catch {
+                    catch (error) {
                         message.channel.send("Tagnutý uživatel neexistuje.");
                         return;
                     }

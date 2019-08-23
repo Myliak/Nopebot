@@ -1,8 +1,8 @@
 const fs = require('fs');
 const Discord = require('discord.js');
-const { prefix, token } = require('./config.json');
+const config = require("./config.json");
 
-const client = new Discord.Client();
+var client = new Discord.Client();
 client.commands = new Discord.Collection();
 
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
@@ -14,15 +14,15 @@ for (const file of commandFiles) {
 
 const cooldowns = new Discord.Collection();
 
-client.on('ready', () => {
-    client.user.setActivity("niggers", {type: "WATCHING"});
+client.once('ready', () => {
+    //client.user.setActivity(config.statusText, {type: config.statusType});
     console.log('Up and running!');
 });
 
 client.on('message', message => {
-    if (!message.content.startsWith(prefix) || message.author.bot) return;
+    if (!message.content.startsWith(config.prefix) || message.author.bot) return;
 
-    const args = message.content.slice(prefix.length).split(/ +/);
+    const args = message.content.slice(config.prefix.length).split(/ +/);
     const commandName = args.shift().toLowerCase();
 
     const command = client.commands.get(commandName)
@@ -69,7 +69,7 @@ client.on('message', message => {
     }*/
 
     try {
-        command.execute(message, args);
+        command.execute(message, args, client);
     }
     catch (error) {
         console.error(error);
@@ -77,4 +77,4 @@ client.on('message', message => {
     }
 });
 
-client.login(token);
+client.login(config.token);

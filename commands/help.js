@@ -21,7 +21,7 @@ module.exports = {
         const command = commands.get(name) || commands.find(c => c.aliases && c.aliases.includes(name));
 
         if (!command) {
-            return message.reply('that\'s not a valid command!');
+            return message.reply("Neplatný příkaz");
         }
 
         const embed = new RichEmbed()
@@ -30,7 +30,7 @@ module.exports = {
             .addField("Syntaxe příkazu:", command.usage)
             .addField("Informace:", command.description);
 
-        if(command.description){
+        if(command.aliases){
             embed.setDescription("Aliasy: " + command.aliases.join(", "));
         }
 

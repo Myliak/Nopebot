@@ -76,5 +76,6 @@ client.on('message', message => {
         message.reply('Neznámá chyba při spouštění příkazu, napište Myliakovi, on to někdy opraví');
     }
 });
+client.on('error', console.error);
 
 client.login(config.token);

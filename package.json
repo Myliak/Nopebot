@@ -1,0 +1,27 @@
+{
+  "name": "nopebot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "dependencies": {
+    "discord.js": "^12.4.1",
+    "discord.js-commando": "^0.11.0-dev",
+    "sequelize": "^6.3.5",
+    "sqlite3": "^5.0.0",
+    "sqlite": "^4.0.15"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Myliak/Nopebot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Myliak/Nopebot/issues"
+  },
+  "homepage": "https://github.com/Myliak/Nopebot#readme",
+  "description": ""
+}

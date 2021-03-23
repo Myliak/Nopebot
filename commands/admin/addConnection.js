@@ -11,6 +11,7 @@ module.exports = class addconnectionCommand extends Command {
             memberName: "addconnection",
             description: "Vytvoří nové spojení na zprávě mezi rolí a reakcí",
             guildOnly: "true",
+            userPermissions: ["ADMINISTRATOR"],
             args:[
                 {
                     key: "targetRole",
@@ -21,32 +22,50 @@ module.exports = class addconnectionCommand extends Command {
                     key: "targetEmoji",
                     prompt: "Zadejte emoji pro spojení",
                     type: "string"
+                },
+                {
+                    key: "targetMessage",
+                    prompt: "Zadejte ID zprávy, na které chcete role",
+                    type: "string"
                 }
             ]
         });
     }
 
-    async run(message, { targetRole, targetEmoji }){
-        //Kontrola oprávnění uživatele
-        if(!message.member.roles.cache.has(config.adminRoleID) && message.author.id !== "279616229793071105") return console.log("Uživatel " + message.author.username + " se pokusil spustit příkaz createconnection");
+    hasPermission(message){
+        return message.member.hasPermission('ADMINISTRATOR');
+    }
 
+    async run(message, { targetRole, targetEmoji, targetMessage }){
+        console.log(targetRole);
+        console.log(targetEmoji);
         const role = message.guild.roles.cache.get(targetRole.slice(3, -1));
-        const emoji = message.guild.emojis.cache.get(targetEmoji.toString().split("\:")[2].slice(0,-1));
+        let emoji = targetEmoji;
+        if(targetEmoji.length > 1){
+            emoji = message.guild.emojis.cache.get(targetEmoji.toString().split("\:")[2].slice(0,-1));
+        }
+        console.log(role);
+        console.log(emoji);
         let notFound = true;
-
-        for(let element of this.client.channels.cache.values()){
-            if(element.type === "text") {
+        
+        for(let channel of message.guild.channels.cache.values()){
+            if(channel.type === "text") {
                 try {
-                    const targetMessage = await element.messages.fetch(config.staticMessageID);
-                    await this.client.provider.db.modelManager.models[0].create({
-                        targetEmoji: emoji.id,
-                        targetRole: role.id,
-                    });
+                    const reactionMessage = await channel.messages.fetch(targetMessage);
+                    if(reactionMessage != null){
+                        await this.client.provider.db.modelManager.models[0].create({
+                            targetMessage: reactionMessage.id,
+                            targetEmoji: emoji.id,
+                            targetRole: role.id,
+                            targetGuild: message.guild.id
+                        });
 
-                    notFound = false;
-                    lib.startCollector(this.client);
-                    await targetMessage.react(emoji);
-                    return message.channel.send("Nové spojení mezi " + role.name + " a " + emoji.name + " vytvořeno");
+                        notFound = false;
+                        lib.startCollectors(this.client);
+                        await reactionMessage.react(emoji);
+                        return message.channel.send("Nové spojení mezi " + role.name + " a " + emoji.name + " vytvořeno");
+                    }
+                    
                 }
                 catch (e) {
                     if (e.name === "SequelizeUniqueConstraintError") {

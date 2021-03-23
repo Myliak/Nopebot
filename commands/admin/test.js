@@ -1,3 +1,6 @@
+const lib = require("../../customFunctions.js");
+const { Command } = require('discord.js-commando');
+
 // module.exports = {
 //     name: "test",
 //     guildOnly: true,
@@ -17,3 +20,20 @@
 //         message.channel.send("Jsem testovací command a momentálně nemám využití, nech mě být (•_•)");
 //     }
 // };
+
+module.exports = class testCommand extends Command {
+    constructor(client) {
+        super(client, {
+            name: "test",
+            group: "admin",
+            memberName: "test",
+            description: "Test",
+            guildOnly: "true"
+        });
+    }
+
+    async run(message)
+    {
+        lib.startCollectors(this.client);
+    }
+}

@@ -10,14 +10,17 @@ module.exports = class showconnectionsCommand extends Command {
             group: "admin",
             memberName: "showconnections",
             description: "Vypíše všechny aktivní spojení",
-            guildOnly: "true",
+            guildOnly: "true"
         });
     }
 
+    hasPermission(message){
+        return message.member.hasPermission('ADMINISTRATOR');
+    }
+
     async run(message){
-        if(!message.member.roles.cache.has(config.adminRoleID) && message.author.id !== "279616229793071105") return console.log("Uživatel " + message.author.username + " se pokusil spustit příkaz showconnections");
         try {
-            const dataList = await this.client.provider.db.modelManager.models[0].findAll({attributes: ["targetRole", "targetEmoji"]});
+            const dataList = await this.client.provider.db.modelManager.models[0].findAll({where: { targetGuild: message.guild.id }});
             let roleString = "";
             let emojiString = "";
 

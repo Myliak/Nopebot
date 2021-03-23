@@ -37,6 +37,14 @@ const roleConnections = sequelize.define('RoleConnections', {
     targetEmoji: {
         type: Sequelize.STRING,
         unique: true
+    },
+    targetGuild: {
+        type: Sequelize.STRING,
+        unique: false
+    },
+    targetMessage: {
+        type: Sequelize.STRING,
+        unique: false
     }
 });
 
@@ -44,7 +52,7 @@ client.setProvider(new SequelizeProvider(sequelize)).catch(console.error);
 
 client.once('ready', async () => {
     roleConnections.sync();
-    lib.startCollector(client, roleConnections);
+    lib.startCollectors(client);
 
     console.log('Up and running!');
 });

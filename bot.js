@@ -1,27 +1,14 @@
-const path = require('path');
-const sqlite = require('sqlite');
-const config = require("./config.json");
-const { CommandoClient } = require('discord.js-commando');
-const lib = require('./customFunctions.js');
-const SequelizeProvider = require("./Sequelize.js");
+const { Client, Collection, Intents } = require('discord.js');
+const config = require('./config.json');
 const Sequelize = require('sequelize');
+const fs = require('fs');
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
 
-const client = new CommandoClient({
-    commandPrefix: 'nope ',
-    owner: '279616229793071105',
-});
+// Create a new client instance
+const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
-client.registry
-    .registerDefaultTypes()
-    .registerGroups([
-        ["admin", "Administrátoři"],
-        ["public", "Veřejné"],
-        ["private", "Soukromé (Channel admins)"]
-    ])
-    .registerDefaultGroups()
-    .registerDefaultCommands({help: false, unknownCommand: false})
-    .registerCommandsIn(path.join(__dirname, "commands"));
-
+//Sqlite Database init
 const sequelize = new Sequelize('database', 'user', 'password', {
     host: 'localhost',
     dialect: 'sqlite',
@@ -29,42 +16,182 @@ const sequelize = new Sequelize('database', 'user', 'password', {
     storage: 'database.sqlite',
 });
 
+//Sqlite table definitions
+const guilds = sequelize.define("Guilds", {
+    guid: {
+        type: Sequelize.STRING,
+        unique: true
+    }
+});
+
+const guildSettings = sequelize.define("GuildSettings",{
+    admin: {
+        type: Sequelize.BOOLEAN
+    },
+    connections: {
+        type: Sequelize.BOOLEAN
+    },
+    permissions: {
+        type: Sequelize.BOOLEAN
+    },
+    music: {
+        type: Sequelize.BOOLEAN
+    }
+})
+
 const roleConnections = sequelize.define('RoleConnections', {
-    targetRole: {
+    roleId: {
         type: Sequelize.STRING,
         unique: true
     },
-    targetEmoji: {
+    emoji: {
         type: Sequelize.STRING,
         unique: true
     },
-    targetGuild: {
-        type: Sequelize.STRING,
-        unique: false
-    },
-    targetMessage: {
+    messageId: {
         type: Sequelize.STRING,
         unique: false
     }
 });
 
-client.setProvider(new SequelizeProvider(sequelize)).catch(console.error);
+//Sequelize relationships
+guilds.hasOne(guildSettings);
+guilds.hasOne(roleConnections);
 
-client.once('ready', async () => {
-    roleConnections.sync();
-    lib.startCollectors(client);
+client.once('ready', () => {
+    //Synchronize database
+    sequelize.sync({force: true});
 
-    console.log('Up and running!');
+    //Global command registering
+    client.commands = new Collection();
+    const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+    for (const file of commandFiles) {
+        const command = require(`./commands/${file}`);
+        client.commands.set(command.data.name, command);
+    }
+
+    const rest = new REST({ version: '9' }).setToken(config.token);
+    const guildId = '409325973532704769';
+
+    (async () => {
+        try {
+            console.log('Started refreshing application (/) commands.');
+            let array = Array.from(client.commands.values());
+            array = array.map(x => x.data);
+
+            await rest.put(
+                Routes.applicationGuildCommands(client.user.id, guildId),
+                { body: array },
+            );
+
+            console.log('Successfully reloaded application (/) commands.');
+        } catch (error) {
+            console.error(error);
+        }
+    })();
+
+	console.log('Up and running!');
 });
 
-client.on('guildMemberAdd', async(member) => {
-    const memberRole = member.guild.roles.cache.find(role => role.name.toLowerCase() == "Member".toLowerCase());
-    member.roles.add(memberRole).catch(console.error);
+client.on('interactionCreate', async interaction => {
+	if (!interaction.isCommand()) return;
+
+	const command = client.commands.get(interaction.commandName);
+
+	if (!command) return;
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	}
 });
 
-client.on('error', console.error);
+client.on('guildCreate', async guild => {
+    await guilds.create({
+        guid: guild.Id
+    });
+});
 
+client.on('guildDelete', async guild => {
+    await guilds.destroy({ 
+        where: { guid: guild.Id }
+    });
+});
+
+// Login to Discord with your client's token
 client.login(config.token);
+
+
+// const path = require('path');
+// const sqlite = require('sqlite');
+// const config = require("./config.json");
+// const { CommandoClient } = require('discord.js-commando');
+// const lib = require('./customFunctions.js');
+// const SequelizeProvider = require("./Sequelize.js");
+// const Sequelize = require('sequelize');
+
+// const client = new CommandoClient({
+//     commandPrefix: 'nope ',
+//     owner: '279616229793071105',
+// });
+
+// client.registry
+//     .registerDefaultTypes()
+//     .registerGroups([
+//         ["admin", "Administrátoři"],
+//         ["public", "Veřejné"],
+//         ["private", "Soukromé (Channel admins)"]
+//     ])
+//     .registerDefaultGroups()
+//     .registerDefaultCommands({help: false, unknownCommand: false})
+//     .registerCommandsIn(path.join(__dirname, "commands"));
+
+// const sequelize = new Sequelize('database', 'user', 'password', {
+//     host: 'localhost',
+//     dialect: 'sqlite',
+//     logging: false,
+//     storage: 'database.sqlite',
+// });
+
+// const roleConnections = sequelize.define('RoleConnections', {
+//     targetRole: {
+//         type: Sequelize.STRING,
+//         unique: true
+//     },
+//     targetEmoji: {
+//         type: Sequelize.STRING,
+//         unique: true
+//     },
+//     targetGuild: {
+//         type: Sequelize.STRING,
+//         unique: false
+//     },
+//     targetMessage: {
+//         type: Sequelize.STRING,
+//         unique: false
+//     }
+// });
+
+// client.setProvider(new SequelizeProvider(sequelize)).catch(console.error);
+
+// client.once('ready', async () => {
+//     roleConnections.sync();
+//     lib.startCollectors(client);
+
+//     console.log('Up and running!');
+// });
+
+// client.on('guildMemberAdd', async(member) => {
+//     const memberRole = member.guild.roles.cache.find(role => role.name.toLowerCase() == "Member".toLowerCase());
+//     member.roles.add(memberRole).catch(console.error);
+// });
+
+// client.on('error', console.error);
+
+// client.login(config.token);
 
 // var client = new Discord.Client();
 // client.commands = new Discord.Collection();

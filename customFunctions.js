@@ -62,3 +62,5 @@ exports.removeRole = async function(client, userID, roleID, guildID){
         targetMember.roles.remove(targetRole).catch(console.error);
     }
 };
+
+exports.register

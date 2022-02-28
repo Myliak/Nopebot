@@ -1,84 +1,42 @@
 const { Client, Collection, Intents } = require('discord.js');
 const config = require('./config.json');
-const Sequelize = require('sequelize');
 const fs = require('fs');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
+const lib = require('./customFunctions.js');
+const { getData } = require('./commands/enable');
+const { DbConnection, Guild } = require('./dbObjects.js');
 
 // Create a new client instance
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
-//Sqlite Database init
-const sequelize = new Sequelize('database', 'user', 'password', {
-    host: 'localhost',
-    dialect: 'sqlite',
-    logging: false,
-    storage: 'database.sqlite',
-});
-
-//Sqlite table definitions
-const guilds = sequelize.define("Guilds", {
-    guid: {
-        type: Sequelize.STRING,
-        unique: true
-    }
-});
-
-const guildSettings = sequelize.define("GuildSettings",{
-    admin: {
-        type: Sequelize.BOOLEAN
-    },
-    connections: {
-        type: Sequelize.BOOLEAN
-    },
-    permissions: {
-        type: Sequelize.BOOLEAN
-    },
-    music: {
-        type: Sequelize.BOOLEAN
-    }
-})
-
-const roleConnections = sequelize.define('RoleConnections', {
-    roleId: {
-        type: Sequelize.STRING,
-        unique: true
-    },
-    emoji: {
-        type: Sequelize.STRING,
-        unique: true
-    },
-    messageId: {
-        type: Sequelize.STRING,
-        unique: false
-    }
-});
-
-//Sequelize relationships
-guilds.hasOne(guildSettings);
-guilds.hasOne(roleConnections);
-
 client.once('ready', () => {
     //Synchronize database
-    sequelize.sync({force: true});
+    // DbConnection.sync();
+    DbConnection.sync({force: true}).then(async () => {
+        const guildId = "409325973532704769";
+        await Guild.create({ id: guildId, name: 'Nopeville', settings: {} }, { include: 'settings' });
+    });
 
     //Global command registering
     client.commands = new Collection();
     const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
+    //Read global commands (root of commands folder)
     for (const file of commandFiles) {
         const command = require(`./commands/${file}`);
-        client.commands.set(command.data.name, command);
+        client.commands.set(command.getData().name, command);
     }
 
     const rest = new REST({ version: '9' }).setToken(config.token);
     const guildId = '409325973532704769';
 
+    // Registering REST
     (async () => {
         try {
             console.log('Started refreshing application (/) commands.');
             let array = Array.from(client.commands.values());
-            array = array.map(x => x.data);
+            array = array.map(x => x.getData());
 
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, guildId),
@@ -94,11 +52,12 @@ client.once('ready', () => {
 	console.log('Up and running!');
 });
 
+//Executing command file
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isCommand()) return;
 
 	const command = client.commands.get(interaction.commandName);
-
+    
 	if (!command) return;
 
 	try {
@@ -110,15 +69,24 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('guildCreate', async guild => {
-    await guilds.create({
-        guid: guild.Id
-    });
+    try{
+        await Guild.create({ id: guild.id, name: guild.name, settings: {} }, { include: 'settings' });
+        console.log("Registered guild: " + guild.name + ", " + guild.id);
+    }
+    catch(e){
+        console.log(e);
+    }
+    
 });
 
 client.on('guildDelete', async guild => {
-    await guilds.destroy({ 
-        where: { guid: guild.Id }
-    });
+    try{
+        await Guild.destroy({ where: { id: guild.id }});
+        console.log("Unregistered guild: " + guild.name + ", " + guild.id)
+    }
+    catch(e){
+        console.log(e)
+    }
 });
 
 // Login to Discord with your client's token

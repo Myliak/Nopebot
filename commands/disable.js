@@ -1,10 +1,12 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	getData() {
+		return new SlashCommandBuilder()
 		.setName('disable')
 		.setDescription('Disables command set for a server')
-        .setDefaultPermission(true),
+        .setDefaultPermission(true);
+	}, 
 	async execute(interaction) {
 		await interaction.reply('Pong!');
 	},

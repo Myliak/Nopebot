@@ -1,5 +1,9 @@
 const config = require("./config.json");
 const { MessageEmbed } = require('discord.js');
+const { SlashCommandSubcommandGroupBuilder } = require("@discordjs/builders");
+const { REST } = require('@discordjs/rest');
+const fs = require('fs');
+const { Routes } = require('discord-api-types/v9');
 
 exports.startCollectors = async function(client){
     const roleConnections = client.provider.db.modelManager.models[0];
@@ -62,5 +66,42 @@ exports.removeRole = async function(client, userID, roleID, guildID){
         targetMember.roles.remove(targetRole).catch(console.error);
     }
 };
+
+exports.getDatabaseStrings = function(sequelize){
+    // console.log(sequelize.models.GuildSettings.rawAttributes);
+    var columnArray = Object.keys(sequelize.models.GuildSettings.rawAttributes);
+    for(let i = 1; i < columnArray.length - 3; i++){
+        console.log(columnArray[i]);
+    }
+    // for(let key in sequelize.models.GuildSettings.rawAttributes){
+    //     console.log(key);
+    // }
+    // console.log(sequelize.models.GuildSettings.rawAttributes);
+    // console.log(sequelize.models.GuildSettings);
+}
+
+exports.refreshModules = async function(moduleNames, clientId, guildId){
+    const commands = [];
+    
+    for(var moduleName in modulesNames){
+        const commandFiles = fs.readdirSync(`./commands/${moduleName}`).filter(file => file.endsWith('.js'));
+        for (const file of commandFiles) {
+            const command = require(`./commands/${moduleName}/${file}`);
+            commands.push(command.getData().toJSON());
+        }
+    }
+    const rest = new REST({ version: '9' }).setToken(config.token);
+
+    (async () => {
+        try {
+            await rest.put(
+                Routes.applicationGuildCommands(clientId, guildId),
+                { body: commands },
+            );
+        } catch (error) {
+            console.error(error);
+        }
+    })();
+}
 
 exports.register

@@ -1,9 +1,11 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	getData(sequelize) {
+        return new SlashCommandBuilder()
 		.setName('ping')
-		.setDescription('Replies with Pong!'),
+		.setDescription('Replies with Pong!')
+    },
 	async execute(interaction) {
 		await interaction.reply('Pong!');
         // console.log(targetRole);

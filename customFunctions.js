@@ -1,9 +1,10 @@
 const config = require("./config.json");
-const { MessageEmbed } = require('discord.js');
+const { MessageEmbed, Collection } = require('discord.js');
 const { SlashCommandSubcommandGroupBuilder } = require("@discordjs/builders");
 const { REST } = require('@discordjs/rest');
 const fs = require('fs');
 const { Routes } = require('discord-api-types/v9');
+const { GuildSettings, Guild } = require("./dbObjects.js");
 
 exports.startCollectors = async function(client){
     const roleConnections = client.provider.db.modelManager.models[0];
@@ -67,41 +68,67 @@ exports.removeRole = async function(client, userID, roleID, guildID){
     }
 };
 
-exports.getDatabaseStrings = function(sequelize){
-    // console.log(sequelize.models.GuildSettings.rawAttributes);
-    var columnArray = Object.keys(sequelize.models.GuildSettings.rawAttributes);
-    for(let i = 1; i < columnArray.length - 3; i++){
-        console.log(columnArray[i]);
-    }
-    // for(let key in sequelize.models.GuildSettings.rawAttributes){
-    //     console.log(key);
-    // }
-    // console.log(sequelize.models.GuildSettings.rawAttributes);
-    // console.log(sequelize.models.GuildSettings);
-}
+exports.refreshModules = async function(moduleName, enable, clientId, guildId){
+    //Module update in db
+    var updateClause = {};
+    updateClause[moduleName] = enable;
+    await GuildSettings.update(updateClause, { where: { guild_id: guildId }});
 
-exports.refreshModules = async function(moduleNames, clientId, guildId){
-    const commands = [];
-    
-    for(var moduleName in modulesNames){
-        const commandFiles = fs.readdirSync(`./commands/${moduleName}`).filter(file => file.endsWith('.js'));
-        for (const file of commandFiles) {
-            const command = require(`./commands/${moduleName}/${file}`);
-            commands.push(command.getData().toJSON());
-        }
-    }
+    //Read command files
+    const commands = await exports.getActiveCommands(guildId, true); //REFRESH MODULU JE LOCAL, FALSE PO GLOBALU
     const rest = new REST({ version: '9' }).setToken(config.token);
 
-    (async () => {
-        try {
-            await rest.put(
-                Routes.applicationGuildCommands(clientId, guildId),
-                { body: commands },
-            );
-        } catch (error) {
-            console.error(error);
+    //Command push on discord api
+    try {
+        let array = Array.from(commands.values());
+        array = array.map(x => x.getData());
+        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: array });
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+exports.getActiveCommands = async function(guildId, withGlobal){
+    var guildSetting = await GuildSettings.findOne({where: { guild_id: guildId }});
+
+    //Get active modules on guild
+    const activeModules = [];
+    var columnNamesArray = Object.keys(guildSetting.dataValues)
+    var columnValuesArray = Object.values(guildSetting.dataValues)
+    //skip id, guild_id
+    for(let i = 2; i < columnNamesArray.length; i++){
+        if(columnValuesArray[i] == true){
+            activeModules.push(columnNamesArray[i]);
         }
-    })();
+    }
+
+    //Read command files
+    var commands = new Collection();
+    for(var activeModule of activeModules){
+        commands = new Collection([...commands, ...exports.getCommands(activeModule)]);
+    }
+
+    if(withGlobal){
+        commands = new Collection([...commands, ...exports.getCommands("global")]);
+    }
+
+    return commands;
+};
+
+exports.getCommands = function(moduleName){
+    var path = `./commands/${moduleName}`;
+    if (moduleName == "global"){
+        path = "./commands";
+    }
+
+    const commands = new Collection();
+    const commandFiles = fs.readdirSync(path).filter(file => file.endsWith('.js'));
+    for (const file of commandFiles) {
+        const command = require(path + '/' + file);
+        commands.set(command.getData().name, command);
+    }
+
+    return commands;
 }
 
 exports.register

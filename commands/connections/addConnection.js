@@ -1,60 +1,81 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
+const { Permissions } = require('discord.js');
+const { RoleConnection } = require("../../dbObjects");
+const lib = require("../../customFunctions");
 
 module.exports = {
-	getData(sequelize) {
+	getData() {
         return new SlashCommandBuilder()
-		.setName('ping')
-		.setDescription('Replies with Pong!')
+		.setName('addconnection')
+		.setDescription('Creates new connection between a message and an emoji')
+        .setDefaultPermission(true)
+		.addStringOption(option => option.setName("message").setDescription("Id of message to connect reactions to").setRequired(true))
+		.addRoleOption(option => option.setName("role").setDescription("Tag connected role").setRequired(true))
+		.addStringOption(option => option.setName("emote").setDescription("Emote or id of emote for reaction").setRequired(true));
     },
+	permitted(member){
+		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR);
+	},
 	async execute(interaction) {
-		await interaction.reply('Pong!');
-        // console.log(targetRole);
-        // console.log(targetEmoji);
-        // const role = message.guild.roles.cache.get(targetRole.slice(3, -1));
-        // let emoji = targetEmoji;
-        // if(targetEmoji.length > 1){
-        //     emoji = message.guild.emojis.cache.get(targetEmoji.toString().split("\:")[2].slice(0,-1));
-        // }
-        // console.log(role);
-        // console.log(emoji);
-        // let notFound = true;
-        
-        // for(let channel of message.guild.channels.cache.values()){
-        //     if(channel.type === "text") {
-        //         try {
-        //             const reactionMessage = await channel.messages.fetch(targetMessage);
-        //             if(reactionMessage != null){
-        //                 await this.client.provider.db.modelManager.models[0].create({
-        //                     targetMessage: reactionMessage.id,
-        //                     targetEmoji: emoji.id,
-        //                     targetRole: role.id,
-        //                     targetGuild: message.guild.id
-        //                 });
+		const emote = interaction.options.getString("emote");
+		const message = interaction.options.getString("message");
+		const role = interaction.options.getRole("role");
 
-        //                 notFound = false;
-        //                 lib.startCollectors(this.client);
-        //                 await reactionMessage.react(emoji);
-        //                 return message.channel.send("Nové spojení mezi " + role.name + " a " + emoji.name + " vytvořeno");
-        //             }
+		await interaction.deferReply()
+
+		//Emote id pro uložení
+		var emoteId;
+		var isUnicode;
+		if(emote.Length > 1){
+			emoteId = targetEmoji.toString().split("\:")[2].slice(0,-1)
+			isUnicode = false;
+		}
+		else{
+			emoteId = emote.codePointAt(0).toString();
+			isUnicode = true;
+		}
+
+		var notFound = true;
+		//Hledání zprávy pro reakci
+		for(let channel of interaction.guild.channels.cache.values()){
+            if(channel.type === "GUILD_TEXT") {
+                try {
+                    const reactionMessage = await channel.messages.fetch(message);
+                    if(reactionMessage != null){
+						await RoleConnection.create({
+							guild_id: interaction.guildId,
+							role_id: role.id,
+							message_id: reactionMessage.id,
+							emote_id: emoteId,
+							emote_id_unicode: isUnicode
+						});
+
+                        notFound = false;
+                        // lib.startCollectors(this.client);
+                        await reactionMessage.react(emote);
+						console.log("New connection between " + role.name + " and " + emote + " created");
+                        return interaction.editReply("New connection between " + role.name + " and " + emote + " created");
+                    }
                     
-        //         }
-        //         catch (e) {
-        //             if (e.name === "SequelizeUniqueConstraintError") {
-        //                 console.log(e);
-        //                 return message.channel.send("Používáte roli nebo emoji, které už má spojení");
-        //             }
-        //             else if(e.message === "Unknown Message"){
-        //                 notFound = true;
-        //             }
-        //             else {
-        //                 console.log(e);
-        //                 return message.channel.send("Neznámá chyba při vytváření spojení");
-        //             }
-        //         }
-        //     }
-        // }
-        // if(notFound){
-        //     message.channel.send("Zpráva nebyla nalezena");
-        // }
+                }
+                catch (e) {
+                    if (e.name === "SequelizeUniqueConstraintError") {
+						console.log(e);
+                        await interaction.editReply("You are trying to create an connection on emote which is already in use");
+                    }
+					else if(e.message === "Unknown Message"){
+						notFound = true;
+					}
+                    else {
+						console.log(e);
+                        await interaction.editReply("Unknown error");
+                    }
+                }
+            }
+        }
+		
+		if(notFound){
+            await interaction.editReply("Message not found");
+        }
 	},
 };

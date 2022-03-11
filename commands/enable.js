@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const lib = require("../customFunctions.js");
-const { DbConnection, GuildSettings } = require("../dbObjects.js");
+const { GuildSettings } = require("../dbObjects");
+const { Permissions } = require('discord.js');
 
 module.exports = {
 	getData() {
@@ -22,29 +23,14 @@ module.exports = {
 			return option;
 		});
 	},
+	permitted(member){
+		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR);
+	},
 	async execute(interaction) {
 		const moduleName = interaction.options.getString('module');
 		
-		//Database change
-		var updateClause = {};
-		updateClause[moduleName] = true;
-		await GuildSettings.update(updateClause, { where: { guild_id: interaction.guildId }});
-
-		var guildSetting = await GuildSettings.findOne({where: { guild_id: interaction.guildId }});
-
-		//skip id, guild_id
-		const activeModules = [];
-		var columnNamesArray = Object.keys(guildSetting.dataValues)
-		var columnValuesArray = Object.values(guildSetting.dataValues)
-		for(let i = 2; i < columnNamesArray.length; i++){
-			if(columnValuesArray[i] == true){
-				activeModules.push(columnNamesArray[i]);
-			}
-		}
-
-		console.log(activeModules);
-		// await lib.enableModule(moduleName, interaction.applicationId, interaction.guildId);
-
-		await interaction.reply('Command set of ' + moduleName + ' enabled');
+		await interaction.deferReply();
+		await lib.refreshModules(moduleName, true, interaction.applicationId, interaction.guildId);
+		await interaction.editReply('Command set of ' + moduleName + ' enabled');
 	},
 };

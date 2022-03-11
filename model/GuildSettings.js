@@ -20,6 +20,10 @@ module.exports = (sequelize) => {
         music: {
             type: Sequelize.BOOLEAN,
             defaultValue: false
+        },
+        nopeville: {
+            type: Sequelize.BOOLEAN,
+            defaultValue: false
         }
     }, {
         timestamps: false

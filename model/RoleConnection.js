@@ -5,17 +5,19 @@ module.exports = (sequelize) => {
         guild_id: {
             type: Sequelize.INTEGER,
         },
-        roleId: {
-            type: Sequelize.STRING,
-            unique: true
+        role_id: {
+            type: Sequelize.STRING
         },
-        emoji: {
-            type: Sequelize.STRING,
-            unique: true
-        },
-        messageId: {
+        message_id: {
             type: Sequelize.STRING,
             unique: false
+        },
+        emote_id: {
+            type: Sequelize.STRING,
+            unique: true
+        },
+        emote_id_unicode: {
+            type: Sequelize.BOOLEAN
         }
     });
 };

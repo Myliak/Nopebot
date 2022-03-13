@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { Permissions } = require('discord.js');
 const { RoleConnection } = require("../../dbObjects");
 const lib = require("../../customFunctions");
+const punycode = require('punycode/');
 
 module.exports = {
 	getData() {
@@ -24,25 +25,56 @@ module.exports = {
         //Emote id pro uložení
 		var emoteId;
 		var isUnicode;
-		if(emote.Length > 1){
-			emoteId = targetEmoji.toString().split("\:")[2].slice(0,-1)
+		//Custom emote
+		if(emote.startsWith("<:")){
+			emoteId = emote.toString().split("\:")[2].slice(0,-1)
 			isUnicode = false;
 		}
+		//Direct custom emote id
+		else if(emote.length > 8){
+			emoteId = emote;
+			isUnicode = false;
+		}
+		//Retarded unicode
 		else{
-			emoteId = emote.codePointAt(0).toString();
+			emoteId = punycode.encode(emote);
 			isUnicode = true;
 		}
 
+		for(let channel of interaction.guild.channels.cache.values()){
+            if(channel.type === "GUILD_TEXT") {
+                try {
+                    const reactionMessage = await channel.messages.fetch(message);
+                    if(reactionMessage != null){
+						await RoleConnection.destroy({ where: { guild_id: interaction.guildId, emote_id: emoteId, emote_id_unicode: isUnicode, message_id: message }});
+						const dbConnections = await RoleConnection.findAll({ where: { message_id: reactionMessage.id }});
+						await lib.startCollector(interaction.guild, reactionMessage, dbConnections);
+
+						console.log("Role connection on message " + message + " of reaction " + emote + " removed");
+						return await interaction.editReply("Role connection removed");
+                    }
+                    
+                }
+                catch (e) {
+					if(e.message === "Unknown Message"){
+						notFound = true;
+					}
+                    else {
+						console.log(e);
+                        return await interaction.editReply("Unknown error");
+                    }
+                }
+            }
+        }
+
         try{
-            await RoleConnection.destroy({ where: { guild_id: interaction.guildId, emote_id: emoteId, emote_id_unicode: isUnicode, message_id: message }});
+            
         }
         catch(e){
             console.log(e);
             await interaction.editReply("Unknown error");
         }
         
-        console.log("Role connection on message " + message + " of reaction " + emote + " removed");
-        // lib.startCollector(this.client);
-        await interaction.editReply("Role connection removed");
+        
 	}
 };

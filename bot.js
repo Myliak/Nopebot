@@ -3,7 +3,6 @@ const config = require('./config.json');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const lib = require('./customFunctions.js');
-const { getData } = require('./commands/enable');
 const { DbConnection, Guild } = require('./dbObjects');
 
 // Create a new client instance
@@ -12,31 +11,41 @@ const client = new Client({
     partials: ['MESSAGE', 'CHANNEL', 'REACTION']
 });
 
-client.once('ready', () => {
+client.once('ready', async () => {
     //Synchronize database
-    // DbConnection.sync();
-    DbConnection.sync({force: true}).then(async () => {
-        const guildId = "409325973532704769";
-        await Guild.create({ id: guildId, name: 'Nopeville', settings: { connections: true, permissions: true, nopeville: true } }, { include: 'settings' });
-    });
+    await DbConnection.sync();
+    // await DbConnection.sync({force: true});
+    // await Guild.create({ 
+    //     id: "409325973532704769", 
+    //     name: 'Nopeville', 
+    //     settings: 
+    //     { 
+    //         connections: true, 
+    //         permissions: true, 
+    //         nopeville: true
+    //     } 
+    // }, { include: 'settings' });
+    
 
     const rest = new REST({ version: '9' }).setToken(config.token);
     
-    client.guilds.cache.forEach((value, key) => {
-        (async () => {
-            try {
-                const guildCommands = await lib.getActiveCommands(key, false);
-                let array = Array.from(guildCommands.values());
-                array = array.map(x => x.getData());
-    
-                await rest.put(Routes.applicationGuildCommands(client.user.id, key), { body: array } );
+    //Command refresh for each guild
+    await client.guilds.cache.forEach(async (value, key) => {
+        try {
+            const guildCommands = await lib.getActiveCommands(key, false);
+            let array = Array.from(guildCommands.values());
+            array = array.map(x => x.getData());
 
-                console.log('Successfully refreshed guild commands of ' + value.name + ":" + key);
-            } catch (error) {
-                console.error(error);
-            }
-        })();
+            await rest.put(Routes.applicationGuildCommands(client.user.id, key), { body: array } );
+
+            console.log('Successfully refreshed guild commands of ' + value.name + ":" + key);
+        } catch (error) {
+            console.error(error);
+        }
     });
+
+    //Collector refresh for each guild
+    await lib.startCollectors(client);
 
 	console.log('Up and running!');
 });

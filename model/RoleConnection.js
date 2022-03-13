@@ -3,7 +3,7 @@ const { Sequelize } = require('sequelize');
 module.exports = (sequelize) => {
     return sequelize.define('RoleConnections', {
         guild_id: {
-            type: Sequelize.INTEGER,
+            type: Sequelize.STRING,
         },
         role_id: {
             type: Sequelize.STRING

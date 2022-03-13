@@ -2,7 +2,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { Permissions } = require('discord.js');
 const { MessageEmbed } = require('discord.js');
 const { RoleConnection } = require("../../dbObjects");
-const lib = require("../../customFunctions");
+const punycode = require('punycode/');
 
 module.exports = {
 	getData() {
@@ -26,15 +26,20 @@ module.exports = {
                 roleString += (role.name + "\n");
 
                 if(element.emote_id_unicode){
-                    emoteString += (String.fromCodePoint(element.emote_id) + "\n");
+                    emoteString += punycode.decode(element.emote_id) + "\n";
                 }
                 else{
                     const emote = interaction.guild.emojis.cache.get(element.emote_id);
-                    emoteString += (emote.Name + "\n");
+                    if(emote !== undefined){
+                        emoteString += (emote.name + "\n");
+                    }
+                    else {
+                        emoteString += element.emote_id + "\n";
+                    }
                 }
             });
 
-            if(!roleString || !emoteString) return message.channel.send("No active connections in your guild");
+            if(!roleString || !emoteString) return await interaction.editReply("No active connections in your guild");
 
             const connectionEmbed = new MessageEmbed()
                 .setTitle("List of connections")
@@ -42,7 +47,7 @@ module.exports = {
                 .addField("Role name", roleString, true)
                 .addField("Emote", emoteString, true)
 
-            return interaction.editReply({embeds: [connectionEmbed] });
+            return await interaction.editReply({ embeds: [connectionEmbed] });
         }
         catch(e){
             console.log(e);

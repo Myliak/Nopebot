@@ -1,23 +1,25 @@
 const config = require("./config.json");
 const { MessageEmbed, Collection } = require('discord.js');
-const { SlashCommandSubcommandGroupBuilder } = require("@discordjs/builders");
 const { REST } = require('@discordjs/rest');
 const fs = require('fs');
 const { Routes } = require('discord-api-types/v9');
-const { GuildSettings, Guild } = require("./dbObjects.js");
+const { GuildSettings, RoleConnection } = require("./dbObjects.js");
+const punycode = require('punycode/');
+
+const collectors = new Collection();
 
 exports.startCollectors = async function(client){
-    const roleConnections = client.provider.db.modelManager.models[0];
-    const uniqueMessages = await roleConnections.aggregate("targetMessage", "DISTINCT", { plain: false });
+    const uniqueMessages = await RoleConnection.aggregate("message_id", "DISTINCT", { plain: false });
     for(let i = 0; i < uniqueMessages.length; i++){
-        const dbConnections = await roleConnections.findAll({ where: { targetMessage: uniqueMessages[i].DISTINCT }});
-        const targetGuild = client.guilds.cache.get(dbConnections[0].targetGuild);
+        const dbConnections = await RoleConnection.findAll({ where: { message_id: uniqueMessages[i].DISTINCT }});
+        const targetGuild = client.guilds.cache.get(dbConnections[0].guild_id);
         for(let channel of targetGuild.channels.cache.values()){
-            if(channel.type === "text"){
+            if(channel.type === "GUILD_TEXT"){
                 try{
                     const reactionMessage = await channel.messages.fetch(uniqueMessages[i].DISTINCT);
-                    if(reactionMessage != null){
-                        this.startCollector(client, reactionMessage, dbConnections);
+                    if (reactionMessage != null){
+                        exports.startCollector(targetGuild, reactionMessage, dbConnections);
+                        return;
                     }
                 }
                 catch (e){
@@ -26,43 +28,68 @@ exports.startCollectors = async function(client){
             }
         }
     }
-    
-    //const targetChannel = client.channels.cache.get(config.staticTextChannelID);
-    // const targetGuild = client.guilds.get(client.provider.db.modelManager.models[2])
-    // const targetMessage = await targetChannel.messages.fetch(config.staticMessageID);
-    // const emojiList = await roleConnections.findAll({ attributes: ["targetEmoji"]});
 }
 
-exports.startCollector = async function(client, targetMessage, emojiList){
-    const roleConnections = client.provider.db.modelManager.models[0];
+exports.startCollector = async function(guild, message, emoteList){
     let tempArray = [];
-    for (let i = 0; i < emojiList.length; i++) {
-        tempArray[i] = "reaction.emoji.id === '" + emojiList[i].targetEmoji + "'";
+    for (let i = 0; i < emoteList.length; i++) {
+        if(emoteList[i].emote_id_unicode){
+            tempArray[i] = "reaction.emoji.name === '" + punycode.decode(emoteList[i].emote_id) + "'";
+        }
+        else{
+            tempArray[i] = "reaction.emoji.id === '" + emoteList[i].emote_id + "'";
+        }
     }
-    const filterString = "return (" + tempArray.join(' || ') + ") && user.id !== '685118157614088222'";
+    //Check for active collector
+    let activeCollector = collectors.get(message.id);
+    if (activeCollector !== undefined){
+        activeCollector.stop();
+    }
+
+    const filterString = "return (" + tempArray.join(' || ') + ") && user.id !== '" + config.clientId + "'";
     const filter = new Function("reaction, user", filterString);
-    const collector = targetMessage.createReactionCollector(filter, {dispose: true});
+    const collector = message.createReactionCollector({ filter, dispose: true});
+    
+    //Set active collector
+    collectors.set(message.id, collector);
+    console.log("Collector created with filter: " + filterString);
     collector.on('collect', async (reaction, user) => {
-        const dbEntity = await roleConnections.findOne({where: {targetEmoji: reaction._emoji.id}});
-        this.addRole(client, user.id, dbEntity.dataValues.targetRole, emojiList[0].targetGuild).then(() => console.log("Added role " + reaction._emoji.name + " to " + user.username));
+        let connection;
+        if(reaction.emoji.id === null){
+            connection = await RoleConnection.findOne({ where: { emote_id: punycode.encode(reaction.emoji.name) }});
+        }
+        else{
+            connection = await RoleConnection.findOne({ where: { emote_id: reaction.emoji.id }})
+        }
+
+        if(connection !== null){
+            exports.addRole(guild, user.id, connection.role_id).then(() => console.log("Added role " + reaction._emoji.name + " to " + user.username));
+        }
     });
     collector.on('remove', async (reaction, user) => {
-        const dbEntity = await roleConnections.findOne({where: {targetEmoji: reaction._emoji.id}});
-        this.removeRole(client, user.id, dbEntity.dataValues.targetRole, emojiList[0].targetGuild).then(() => console.log("Removed role " + reaction._emoji.name + " from " + user.username));
+        let connection;
+        if(reaction.emoji.id === null){
+            connection = await RoleConnection.findOne({ where: { emote_id: punycode.encode(reaction.emoji.name) }});
+        }
+        else{
+            connection = await RoleConnection.findOne({ where: { emote_id: reaction.emoji.id }})
+        }
+
+        if(connection !== null) {
+            exports.removeRole(guild, user.id, connection.role_id).then(() => console.log("Removed role " + reaction._emoji.name + " from " + user.username));
+        }
     });
 }
 
-exports.addRole = async function(client, userID, roleID, guildID){
-    const targetGuild = await client.guilds.cache.get(guildID);
-    let targetRole = await targetGuild.roles.cache.get(roleID);
-    const targetMember = await targetGuild.members.fetch(userID);
+exports.addRole = async function(guild, userID, roleID){
+    let targetRole = await guild.roles.cache.get(roleID);
+    const targetMember = await guild.members.fetch(userID);
     targetMember.roles.add(targetRole).catch(console.error);
 };
 
-exports.removeRole = async function(client, userID, roleID, guildID){
-    const targetGuild = await client.guilds.cache.get(guildID);
-    let targetRole = await targetGuild.roles.cache.get(roleID);
-    const targetMember = await targetGuild.members.fetch(userID);
+exports.removeRole = async function(guild, userID, roleID){
+    let targetRole = await guild.roles.cache.get(roleID);
+    const targetMember = await guild.members.fetch(userID);
     if(targetMember.roles.cache.find(function (element) {return element === targetRole;}) !== null){
         targetMember.roles.remove(targetRole).catch(console.error);
     }

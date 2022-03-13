@@ -33,7 +33,19 @@ GuildSettings.belongsTo(Guild,{
 });
 
 //1:n Guild:RoleConnection
-Guild.hasMany(RoleConnection);
-RoleConnection.belongsTo(Guild);
+Guild.hasMany(RoleConnection, {
+    foreignKey: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        name: 'guild_id'
+    },
+    onDelete: 'CASCADE'
+});
+RoleConnection.belongsTo(Guild,{
+    foreignKey: {
+        allowNull: false,
+        name: 'guild_id'
+    }
+});
 
 module.exports = { DbConnection, Guild, GuildSettings, RoleConnection };

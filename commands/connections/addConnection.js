@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { Permissions } = require('discord.js');
 const { RoleConnection } = require("../../dbObjects");
 const lib = require("../../customFunctions");
+const punycode = require('punycode/');
 
 module.exports = {
 	getData() {
@@ -25,13 +26,20 @@ module.exports = {
 
 		//Emote id pro uložení
 		var emoteId;
-		var isUnicode;
-		if(emote.Length > 1){
-			emoteId = targetEmoji.toString().split("\:")[2].slice(0,-1)
+		var isUnicode
+		//Custom emote
+		if(emote.startsWith("<:")){
+			emoteId = emote.toString().split("\:")[2].slice(0,-1)
 			isUnicode = false;
 		}
+		//Direct custom emote id
+		else if(emote.length > 8){
+			emoteId = emote;
+			isUnicode = false;
+		}
+		//Retarded unicode
 		else{
-			emoteId = emote.codePointAt(0).toString();
+			emoteId = punycode.encode(emote);
 			isUnicode = true;
 		}
 
@@ -42,6 +50,7 @@ module.exports = {
                 try {
                     const reactionMessage = await channel.messages.fetch(message);
                     if(reactionMessage != null){
+						console.log("Creating new RoleConnection entry");
 						await RoleConnection.create({
 							guild_id: interaction.guildId,
 							role_id: role.id,
@@ -51,24 +60,28 @@ module.exports = {
 						});
 
                         notFound = false;
-                        // lib.startCollectors(this.client);
                         await reactionMessage.react(emote);
+
+						//Restart collectors on a message
+						const dbConnections = await RoleConnection.findAll({ where: { message_id: reactionMessage.id }});
+						await lib.startCollector(interaction.guild, reactionMessage, dbConnections);
+
 						console.log("New connection between " + role.name + " and " + emote + " created");
-                        return interaction.editReply("New connection between " + role.name + " and " + emote + " created");
+                        return await interaction.editReply("New connection between " + role.name + " and " + emote + " created");
                     }
                     
                 }
                 catch (e) {
                     if (e.name === "SequelizeUniqueConstraintError") {
 						console.log(e);
-                        await interaction.editReply("You are trying to create an connection on emote which is already in use");
+                        return await interaction.editReply("You are trying to create an connection on emote which is already in use");
                     }
 					else if(e.message === "Unknown Message"){
 						notFound = true;
 					}
                     else {
 						console.log(e);
-                        await interaction.editReply("Unknown error");
+                        return await interaction.editReply("Unknown error");
                     }
                 }
             }

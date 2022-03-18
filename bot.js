@@ -32,7 +32,7 @@ client.once('ready', async () => {
     //Command refresh for each guild
     await client.guilds.cache.forEach(async (value, key) => {
         try {
-            const guildCommands = await lib.getActiveCommands(key, false);
+            const guildCommands = await lib.getActiveCommands(key, true);
             let array = Array.from(guildCommands.values());
             array = array.map(x => x.getData());
 

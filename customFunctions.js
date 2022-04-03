@@ -13,6 +13,7 @@ exports.startCollectors = async function(client){
     for(let i = 0; i < uniqueMessages.length; i++){
         const dbConnections = await RoleConnection.findAll({ where: { message_id: uniqueMessages[i].DISTINCT }});
         const targetGuild = client.guilds.cache.get(dbConnections[0].guild_id);
+        console.log(targetGuild);
         for(let channel of targetGuild.channels.cache.values()){
             if(channel.type === "GUILD_TEXT"){
                 try{
@@ -23,7 +24,7 @@ exports.startCollectors = async function(client){
                     }
                 }
                 catch (e){
-                    console.log(e);
+                    
                 }
             }
         }

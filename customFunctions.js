@@ -17,16 +17,21 @@ exports.startCollectors = async function(client){
             if(targetGuild !== undefined){
                 for(let channel of targetGuild.channels.cache.values()){
                     if(channel.type === "GUILD_TEXT"){
-                        const reactionMessage = await channel.messages.fetch(uniqueMessages[i].DISTINCT);
-                        if (reactionMessage != null){
-                            exports.startCollector(targetGuild, reactionMessage, dbConnections);
-                            return;
+                        try{
+                            const reactionMessage = await channel.messages.fetch(uniqueMessages[i].DISTINCT);
+                            if (reactionMessage != null){
+                                exports.startCollector(targetGuild, reactionMessage, dbConnections);
+                                break;
+                            }
+                        }
+                        catch(e){
+
                         }
                     }
                 }
             }
          }
-         catch (e){
+         catch (e) {
             console.log(e);            
         }
     }    

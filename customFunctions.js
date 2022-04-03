@@ -54,6 +54,9 @@ exports.startCollector = async function(guild, message, emoteList){
     collectors.set(message.id, collector);
     console.log("Collector created with filter: " + filterString);
     collector.on('collect', async (reaction, user) => {
+        console.log(user.id);
+        console.log(config.clientId);
+        console.log(user.id === config.clientId);
         if(user.id === config.clientId){
             return;
         }

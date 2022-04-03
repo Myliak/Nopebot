@@ -61,7 +61,7 @@ exports.startCollector = async function(guild, message, emoteList){
     collectors.set(message.id, collector);
     console.log("Collector created with filter: " + filterString);
     collector.on('collect', async (reaction, user) => {
-        if(user.id.toString() === config.clientId){
+        if(user.id.toString() == config.clientId){
             return;
         }
 
@@ -78,7 +78,7 @@ exports.startCollector = async function(guild, message, emoteList){
         }
     });
     collector.on('remove', async (reaction, user) => {
-        if(user.id.toString() === config.clientId){
+        if(user.id.toString() == config.clientId){
             return;
         }
 

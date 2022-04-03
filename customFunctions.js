@@ -46,7 +46,7 @@ exports.startCollector = async function(guild, message, emoteList){
         activeCollector.stop();
     }
 
-    const filterString = "return (" + tempArray.join(' || ') + ") && user.id !== '" + config.clientId + "'";
+    const filterString = "return (" + tempArray.join(' || ') + ")";
     const filter = new Function("reaction, user", filterString);
     const collector = message.createReactionCollector({ filter, dispose: true});
     
@@ -54,6 +54,10 @@ exports.startCollector = async function(guild, message, emoteList){
     collectors.set(message.id, collector);
     console.log("Collector created with filter: " + filterString);
     collector.on('collect', async (reaction, user) => {
+        if(user.id === config.clientId){
+            return;
+        }
+
         let connection;
         if(reaction.emoji.id === null){
             connection = await RoleConnection.findOne({ where: { emote_id: punycode.encode(reaction.emoji.name) }});
@@ -67,6 +71,10 @@ exports.startCollector = async function(guild, message, emoteList){
         }
     });
     collector.on('remove', async (reaction, user) => {
+        if(user.id === config.clientId){
+            return;
+        }
+
         let connection;
         if(reaction.emoji.id === null){
             connection = await RoleConnection.findOne({ where: { emote_id: punycode.encode(reaction.emoji.name) }});

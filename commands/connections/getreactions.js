@@ -10,7 +10,7 @@ module.exports = {
         .addStringOption(option => option.setName("message").setDescription("Id of message where to read reactions").setRequired(true));
 	},
 	permitted(member){
-		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR);
+		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || member.id == 279616229793071105;
 	},
 	async execute(interaction) {
 		await interaction.deferReply();

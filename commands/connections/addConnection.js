@@ -79,6 +79,9 @@ module.exports = {
 					else if(e.message === "Unknown Message"){
 						notFound = true;
 					}
+					else if(e.message === "Missing Access"){
+						console.log(e);
+					}
                     else {
 						console.log(e);
                         return await interaction.editReply("Unknown error");

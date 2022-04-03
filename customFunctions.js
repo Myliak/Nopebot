@@ -10,6 +10,7 @@ const collectors = new Collection();
 
 exports.startCollectors = async function(client){
     const uniqueMessages = await RoleConnection.aggregate("message_id", "DISTINCT", { plain: false });
+    console.log(uniqueMessages);
     for(let i = 0; i < uniqueMessages.length; i++){
         const dbConnections = await RoleConnection.findAll({ where: { message_id: uniqueMessages[i].DISTINCT }});
         const targetGuild = client.guilds.cache.get(dbConnections[0].guild_id);

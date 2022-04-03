@@ -80,7 +80,7 @@ module.exports = {
 						notFound = true;
 					}
 					else if(e.message === "Missing Access"){
-						console.log(e);
+						console.log("Missing Access - OK");
 					}
                     else {
 						console.log(e);

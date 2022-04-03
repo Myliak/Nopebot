@@ -23,7 +23,7 @@ exports.startCollectors = async function(client){
                     }
                 }
                 catch (e){
-
+                    console.log(e);
                 }
             }
         }
